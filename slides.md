@@ -139,29 +139,248 @@ TODO
 
 <!-- - The **open-source technologies** that power our platform, including EKS, eksctl, sysbox, cri-o, task, helm, karpenter, external-dns, lb-controller, cowsay, and more. -->
 
-overview of the tech that powers the platform
+# An overview of the technology that powers the platform
 
-EKS, eksctl, sysbox, cri-o, task, helm, karpenter, external-dns, lb-controller, cowsay,
+In the cloud native ecosystem we tend to have a tool for every problem.
+Here are the (important) ones that make up this platform within the categories of:
+
+- `Provisioning`
+- `Controllers`
+- `Nested Containers`
+- `Remote Workstation`
+- `Scaling to zero`
+
+---
+layout: two-cols
+---
+
+# Provisioning
+
+We use `EKS` on AWS to get us a Kubernetes cluster
+
+We deploy the cluster using `eksctl`
+
+We orchestrate the running of `eksctl` and giving our declarative specification to Kubernetes using `task`
+
+Configuration is handled in `vars.env`
+
+- 
+
+After we have deployed the `EKS` cluster we let Kubernetes do the rest of the actual provisioning using a number of controllers!
+
+Trainer simply runs `$ task deploy` to deploy and `$ task destroy` to destroy the infrastructure after the training.
+
+::right::
+
+##### Taskfile.yaml
+
+```yaml
+version: "3"
+# load env vars from file
+dotenv:
+  - "vars.env"
+# load extra taskfiles
+includes:
+  eks: "./Taskfile.eks.yaml"
+  helm: "./Taskfile.helm.yaml"
+  workstations: "./Taskfile.workstations.yaml"
+  ...
+tasks:
+  ...
+  deploy:
+    cmds:
+      - task: eks:create-eks-cluster
+      - task: eks:create-eks-public-access-sgr
+      - task: eks:install-metrics-server
+      - task: dns:create-route-53-records
+      - task: dns:request-tls-cert
+      - task: deploy-cluster-wide-resources
+      - task: helm:install-sysbox
+      - task: helm:install-aws-lb-controller
+      ...
+```
 
 ---
 
-tech: provisioning
+# Controllers
 
-task, eks, eksctl
+We install a number of controllers into the cluster to automate the provisioning of dependent resources: `dns`, `load balancing`, `persistent storage`, `auto scaling` and more. 
+
+We use: `aws-load-balancer-controller`, `external-dns`, `ebs-csi-driver`, `karpenter` to automate these needs!
+
+
+> The deployed infrastructure is not static and can be scaled up and down after deployment!
+
+
+##### workstation-ingress.yaml
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: {{ .Values.ingress.certArn }}
+    alb.ingress.kubernetes.io/group.name: "code-server-workstations-{{ $lbidx }}"
+    alb.ingress.kubernetes.io/healthcheck-path: "/healthz"
+    external-dns.alpha.kubernetes.io/hostname: "{{ .Release.Name }}.{{ .Values.ingress.subdomain }}.{{ .Values.ingress.topLevelDomain }}"
+  name: code-server-{{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  rules:
+    - host: "{{ .Release.Name }}.{{ .Values.ingress.subdomain }}.{{ .Values.ingress.topLevelDomain }}"
+      http:
+        paths:
+          - pathType: Prefix
+            path: "/"
+            backend:
+              service:
+                name: code-server-{{ .Release.Name }}
+                port:
+                  number: 4711
+
+```
 
 ---
-
-tech: automation
-
-karpenter, external-dns, aws-lb-controller
-
+layout: two-cols
 ---
 
-tech: container runtime to allow docker-in-container
+# Nested Containers
+
+Each workstation is running in a container in a pod
+
+We need to able to use this infrastructure for docker training, so we need to be able to run nested docker containers within each workstation container
+
+
+Running nested containers has a lot of implications and considerations for `security`, `dependencies` and `functionlity`. 
+Most of these have to do with running _containers as root with privileges_.
+
+The most elegant solution (and the one recommended by the people behind code-server) is using `sysbox` which allows us to run nested containers using a native docker daemon in the container. 
+`sysbox` uses `cri-o` under-the-hood to enable the functionality.
+
+::right:: 
+
+##### workstation-deployment.yaml
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "code-server-{{ .Release.Name }}"
+  namespace: {{ .Release.Namespace }}
+spec:
+  ...
+  template:
+    metadata:
+      annotations:
+        "io.kubernetes.cri-o.userns-mode": "auto:size=65536" # needed for cri-o
+    spec:
+      runtimeClassName: "sysbox-runc" # use sysbox runtime to allow nested docker daemons
+      containers:
+        - name: code-server
+          ...
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              # root setup script, starts docker daemon
+              sudo bash /entrypoint.d/root-setup.sh
+              # non-root setup
+              bash /home/coder/.init/setup.sh
+        ...
+```
 
 ---
+layout: two-cols
+---
 
-tech: workstation helm chart
+# Remote Workstations
+
+Each participant needs a workstation where they can do the exercises of training. 
+The workstations must also have all of the necessary tools installed and configured.
+
+`Containers` solve this problem, especially together with `Kubernetes`. 
+
+In each container we run `code-server` (https://github.com/codercom/code-server) which provides a graphical workstation that can be served using HTTP
+
+Each workstation is deployed using a `helm chart` and all of the configuration is injected at runtime, for example each students `kubeconfig` as a Kubernetes `secret`.
+
+::right::
+
+##### deploy-workstations.sh
+
+```bash
+#!/usr/bin/env bash
+# This script will deploy the code-server helm chart a
+# specified number of times, depending on the desired count of workstations.
+
+for ((idx = 0; idx < $CODE_SERVER_WORKSTATIONS_COUNT; idx++)); do
+    RELEASE_NAME="workstation-${idx}"
+    cowsay "Deploying workstation-${idx}"
+    
+    helm upgrade --install "${RELEASE_NAME}" ../code-server-workstations-helm-chart \
+        --set "index=${idx}" \
+        --values ../code-server-values.yaml \
+        --namespace code-server-workstations
+
+    ...
+
+    cowsay "Deploying kubeconfig for workstation-${idx}"
+    bash create-kubeconfig-secret.sh "${idx}"
+
+    ...
+
+    echo "sleep 10 seconds to let aws lb controller deploy ingress resources"
+    sleep 10
+
+    ...
+done
+```
+
+---
+layout: two-cols
+---
+
+# Scaling to Zero
+
+Since the training infrastructure is only needed during the training itself, but might run over multiple days, it is useful to able to scale the infrastructure to _zero_ when not in use to save money.
+
+This is done in the infrastructure by deploying to `AWS lambdas` which at a specified time will scale the EKS cluster `nodegroup` to 0 nodes, and then back up to the desired count again.
+
+Since each workstation saves it's state to a `pvc` (persistent disk) we can safely _"undeploy"_ the entire workstation infrastructure (save from the Kubernetes control-plane itself) and then simply scale it back up again.
+
+All pods will remain in a `pending` state until nodes are available again.
+
+::right::
+
+##### lambda-handler.py
+
+```python
+...
+def scale_cluster(auto_scaling_group_name: str, desired_node_count: int) -> bool:
+    """Set the autoscaling group to the desired number of nodes, use to scale the cluster up and down"""
+
+    print(f"Scaling the autoscaling group {auto_scaling_group_name} to {desired_node_count} ...")
+
+    # modify the min, max and desired instance counts
+    response = AUTOSCALING_CLIENT.update_auto_scaling_group(
+        AutoScalingGroupName=auto_scaling_group_name,
+        MinSize=desired_node_count,
+        MaxSize=desired_node_count,
+        DesiredCapacity=desired_node_count,
+    )
+
+    if response:
+        if DEBUG:
+            print("response for update_auto_scaling_group request:")
+            pprint(response)
+        if response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+            print(f"Successfully scaled ASG: {auto_scaling_group_name} to {desired_node_count} nodes.")
+            return True
+    return False
+...
+```
 
 ---
 
@@ -230,3 +449,7 @@ argocd-katas being developed to run on top of the platform
 ---
 
 Thank you!
+
+```
+
+```
