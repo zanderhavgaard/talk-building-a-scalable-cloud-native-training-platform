@@ -1,15 +1,13 @@
 ---
 # config for slides
 theme: dracula
-title: Building a Scalable Cloud Native Training Platform with Kubernetes
 transition: slide-left
-author: Zander Havgaard
 fonts:
-  sans: "Ubuntu Nerd Font"
-  serif: "Ubuntu Nerd Font"
-  mono: "Hack Nerd Font"
-themeConfig:
-  primary: "#fff"
+  sans: "Ubuntu"
+  serif: "Ubuntu"
+  mono: "Hack"
+title: Building a Scalable Cloud Native Training Platform with Kubernetes
+author: Zander Havgaard
 
 # layout for first slide
 layout: intro
@@ -31,7 +29,7 @@ TDOC 2023 - Zander Havgaard
 - I have taught courses in: `Kubernetes`, `Docker`, `Helm`, `Istio`, `Git` and more
 - Speaker at meetups
 
-Email: contact@pzh.dk
+Email: contact@pzh.dk | zanderhavgaard@green.ai
 
 GitHub: `@zanderhavgaard`
 
@@ -59,37 +57,83 @@ GitHub: `@zanderhavgaard`
 
 ---
 
-eficode does trainings
+# The context
 
-trainings need infra
+Eficode provides a number of trainings to it's customers in topics such as `kubernetes`, `docker`, `git`, `helm` and many more
 
-we had an infra, we outgrew it
+Each training consists of a trainer presenting the material as well as a number of hands-on exercises, which we call the **katas**
 
-enter new infra
+> All of the katas live on Github and are open source! e.g. https://github.com/eficode-academy/kubernetes-katas
 
----
-
-the new infra
-
-what were the ideas behind the design of the new infra?
-
-why was the design how it ended up?
-
-why cloud native ?
-
-why k8s?
+Students thus need an environment in which they can do the exercises without having to set up their own machines
 
 ---
 
-architecture drawing
+# The "old" Infrastructure
+
+To solve the problem of provisioning infrastructure for each training session we created an infrastructure that could be deployed with `terraform`
+
+The project would deploy a number of `ec2` instances to `AWS` and an optional `EKS` cluster.
+Each `ec2` instance runs `code-server` to provide a workstation.
+
+This was a great solution for a long time. But over time we outgrew the infrastructure:
+
+- It was hard to maintain --> monolithic architecture with many moving parts --> changes / updates were cumbersome and time-consuming
+- It was difficult to extend with new courses
+- Too few people had the knowledge to work on it --> _low busfactor_
+
+<br>
+
+#### ... So it was time to invest in a new infrastructure
 
 ---
 
-workstation architecture drawing
+# Requirements for the New Infrastructure
+
+> A generic platform for running (cloud native) courses:
+
+- Must work with all existing katas
+- The trainer deploying the infrastructure should only have to read a readme to be able to deploy it
+- Must deploy successfully every time
+- Should be **simple** to maintain
+- Everything should be declarative --> avoid running scripts to configure things
+- Should be able to run in a pipeline --> for testing and automation
 
 ---
 
-demo: workstation, kubectl, docker
+# New infrastructure: `k8s-infra`
+
+The infrastructure that I developed to meet these requirements centers around `Kubernetes`
+
+Kubernetes allows us to declare **everything** that we want Kubernetes to control, both _inside_ and _outside_ of the cluster.
+
+-
+
+The idea is to deploy a `Kubernetes cluster` to the `cloud` using the simplest tooling possible.
+
+When we have our cluster, we use the Kubernetes `control-plane` to automate the provisioning and configuration of the infrastructure, in a completely declarative way.
+
+---
+
+# Architecture
+
+TODO
+
+![Diagram of infrastructure architecture](architecture.png)
+
+---
+
+# Workstation components
+
+TODO
+
+![Diagram of components of the workstation](workstation-components.png)
+
+---
+
+# Demo: Workstation, kubectl, docker
+
+![Screenshot of workstation](workstation.png)
 
 ---
 
@@ -176,6 +220,12 @@ this could potentially be solved by abanonding the need for arbitrary open ports
 or by deploying the lb controller in namespaced mode
 
 maybe a service mesh could help?
+
+---
+
+next steps:
+
+argocd-katas being developed to run on top of the platform
 
 ---
 
