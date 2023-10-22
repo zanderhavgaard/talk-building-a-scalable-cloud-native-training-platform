@@ -49,7 +49,7 @@ GitHub: `@zanderhavgaard`
 
 #### Format: Slides and live demonstrations of the platform
 
-> Feel free to ask questions after the talk !
+> Feel free to ask questions and discuss after the talk !
 
 > These slides are on github: https://github.com/zanderhavgaard/talk-building-a-scalable-cloud-native-training-platform
 
@@ -81,6 +81,7 @@ This was a great solution for a long time. But over time we outgrew the infrastr
 - It was hard to maintain --> monolithic architecture with many moving parts --> changes / updates were cumbersome and time-consuming
 - It was difficult to extend with new courses
 - Too few people had the knowledge to work on it --> _low busfactor_
+- Once an infrastructure had been deployed changes could not be made to it in-place, forcing a redeployment --> which would easily take ~30 minutes 
 
 <br>
 
@@ -384,27 +385,51 @@ def scale_cluster(auto_scaling_group_name: str, desired_node_count: int) -> bool
 
 ---
 
-demo: deploying a new workstation with task and running a nginx container in it
+# Demo: Deploying Workstation to an Existing Cluster
+
+![Screenshot of deploying a single workstation](deploy-workstation.png)
 
 ---
 
 <!-- - The **rapid MVP development** of our platform in just two weeks, enabled by cloud-native technologies and AI tools. -->
 
+# Cloud Native Technology Enables Rapid Development
+
+The new infrastructure was developed by one person (me) in _roughly two weeks of "work time"_
+
+This was possible by utilizing __Cloud Native__ technology and the ways of working that they enable
+
+Since I, for the most part, can _declare_ everything that I want, and don't have to worry about _how_ to actually do it --> Kubernetes does the heavy lifting for me!
+
+I also heavily relied on projects that have _sane defaults_ so that I can follow best practices _by only configuring exactly what I need_
+
+(of course I have a lot of knowledge of the ecosystem and had discussed the idea/design with colleagues beforehand) but the actual implementation was shockingly doable for a single person over a short period of time.
+
+The __takeaway__ I want you to have is that: 
+
+> if you buy in to the Cloud Native ecosystem it enables a lot of functionality with a relatively low barrier to entry (once you are in)
+
 ---
 
-I developed the platform in my spare time over roughly two weeks
+# Bonus: Using AI Tools to Speed up Development
 
-I was able to do that b/c I used cloud native tech
+AI development tools are all the rage these days ...
 
-leveraging desired state centric tooling allows for very rapid development
+... But I did use them to develop this project, specifically `Chat-GPT` with `GPT 4.0`
 
-using automation/controllers to do most of heavy lifting
+Which is really good for very generic code such as _"take this terraform code and translate it into a bash script that creates the same resources in AWS"_ which allowed me to do speed things up further by not having to dig through documentation to figure out how to do things (that I knew I could do, just not how) with the `AWS CLI`.
 
-relying on sane defaults
+> Takeaway: If you are not using AI tools to help your development you are missing out, and you will eventually be left behind by people who are. 
 
 ---
 
 <!-- - How we **tested it in production**: delivering a DevOps summer course at the University of Southern Denmark (SDU) to nearly 100 students. -->
+
+# How we Tested the Infrastructure in Production
+
+After the initial MVP of the platform was ready we immediately went on to test it at a summer course we were teaching at the __University of Southern Denmark__ for __almost 100 students__!
+
+
 
 ---
 
