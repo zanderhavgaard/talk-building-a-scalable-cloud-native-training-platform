@@ -429,52 +429,57 @@ Which is really good for very generic code such as _"take this terraform code an
 
 After the initial MVP of the platform was ready we immediately went on to test it at a summer course we were teaching at the __University of Southern Denmark__ for __almost 100 students__!
 
+The course ran over two weeks, and workstations had to be persistent for the duration of the course.
 
+We managed to run 90 workstations (and Exercise workloads) on 15 `ec2` instances! 
 
----
+Down from 90 instances (one per workstation) as well as a cluster (10) ~100 machines.
 
-the platform was tested in "production" this year at a summer course at SDU
+While the 15 instances were bigger (and more expensive) than the ones used in the old infrastructure, we sill managed to halve the cost of running the infrastructure! As well as making the provisioning and managing much simpler.
 
-~80 students over two weeks
+The infrastructure was stable and performance was good.
 
-ran 90 workstations on 9 ec2 machines!
-
-For the most part the experience was seamless and smooth, and the performance was good!
-
-some rare weird issues with docker - probably caused by sysbox
-
-automation to turn off the clusters at night when not in use
-
-was significantly cheaper to run than the old setup
+We did have few rare issues with the docker daemon in some pods bugging out.
+We were unable to reproduce the issues by we suspect they are caused by `sysbox` losing connection to the `cri-o` runtime - if anyone knows anything we'd happy to hear about it!
 
 ---
 
 <!-- - A **discussion on the scaling bottleneck** we encountered and the strategies used to overcome it. -->
 
-the platform does have a scaling bottleneck - the aws-lb-controller and the number of ingresses that we are creating
+# The Inevitable Scaling Bottleneck
 
-we are abusing the ingress functionality / controller for things it was intended for
+The infrastructure does have a scaling bottleneck that we only discovered after "going into production"
 
-the ingress controller can handle about 3 lbs with 30 machines sharded across them
+In the infrastructure we _abuse_ the `ingress` resource to provide the illusion of open ports to the docker daemons running in the workstations.
 
-the solution at the summer course was to deploy 3 identical clusters
+For each workstation we deploy we create a number `ingress` resources to allow connection to the `code-server` and the `nested docker containers` - this means that for each workstation we are deploying at least 7 ingresses - `90*7 = 630` and before that we were deploying even more per workstation, more than 2500 total.
 
-this could potentially be solved by abanonding the need for arbitrary open ports on pods
+The `aws-load-balancer-controller` runs into issues when having to control that many `ingress` resources.
 
-or by deploying the lb controller in namespaced mode
+Thus we needed to decrease the total number of `ingresses in the cluster` as well as the number of targets of each load balancer. 
+The solution was to deploy multiple clusters and "shard" the workstations across multiple load balancers for each cluster. 
 
-maybe a service mesh could help?
+Potential solutions: We could deploy multiple load balancer controllers in namespaced mode in a single cluster. We could abandon the need for arbitrary open ports to each workstation. Maybe a service mesh could solve the routing problem?
 
----
-
-next steps:
-
-argocd-katas being developed to run on top of the platform
 
 ---
 
-Thank you!
+# Thank you!
+
+Email: contact@pzh.dk | zanderhavgaard@green.ai
+
+GitHub: `@zanderhavgaard`
+
+
+Slides available on github: https://github.com/zanderhavgaard/talk-building-a-scalable-cloud-native-training-platform
 
 ```
-
+ ____________ 
+< Questions? >
+ ------------ 
+        \   ^__^
+         \  (oo)\_______
+            (__)\       )\/\
+                ||----w |
+                ||     ||
 ```
