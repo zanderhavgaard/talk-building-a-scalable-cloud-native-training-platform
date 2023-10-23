@@ -118,23 +118,19 @@ When we have our cluster, we use the Kubernetes `control-plane` to automate the 
 
 # Architecture
 
-TODO
-
-![Diagram of infrastructure architecture](architecture.png)
+![Diagram of infrastructure architecture](images/architecture.png)
 
 ---
 
 # Workstation components
 
-TODO
-
-![Diagram of components of the workstation](workstation-components.png)
+![Diagram of components of the workstation](images/workstation-components.png)
 
 ---
 
 # Demo: Workstation, kubectl, docker
 
-![Screenshot of workstation](workstation.png)
+![Screenshot of workstation](images/workstation.png)
 
 ---
 
@@ -387,7 +383,7 @@ def scale_cluster(auto_scaling_group_name: str, desired_node_count: int) -> bool
 
 # Demo: Deploying Workstation to an Existing Cluster
 
-![Screenshot of deploying a single workstation](deploy-workstation.png)
+![Screenshot of deploying a single workstation](images/deploy-workstation.png)
 
 ---
 
