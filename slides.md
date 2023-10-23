@@ -39,9 +39,9 @@ GitHub: `@zanderhavgaard`
 
 - The **rationale** behind the design and architecture of our new infrastructure.
 
-- The **open-source technologies** that power our platform, including EKS, eksctl, sysbox, cri-o, task, helm, karpenter, external-dns, lb-controller, cowsay, and more.
+- The **open-source technologies** that power our platform.
 
-- The **rapid MVP development** of our platform in just two weeks, enabled by cloud-native technologies and AI tools.
+- The **rapid MVP development** of our platform in just two weeks --> enabled by cloud-native technologies and AI tools.
 
 - How we **tested it in production**: delivering a DevOps summer course at the University of Southern Denmark (SDU) to nearly 100 students.
 
